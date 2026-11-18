@@ -47,7 +47,7 @@ describe('FilmsRepository (MongoDB)', () => {
     const found = await repository.findById(film.id);
     expect(found).toEqual(saved);
     expect(found.schedule).toHaveLength(film.schedule.length);
-    expect(found.schedule[0].hall).toBe(String(film.schedule[0].hall));
+    expect(found.schedule[0].hall).toBe(Number(film.schedule[0].hall));
     const stored = await connection
       .collection('films')
       .findOne({ id: film.id });

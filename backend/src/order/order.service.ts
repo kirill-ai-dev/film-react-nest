@@ -44,12 +44,13 @@ export class OrderService {
       tickets.push(ticket);
     }
 
-    return this.filmsRepository.withTransaction(async (repository) => {
+    const reserveOrder = async (repository: FilmsRepository) => {
       const results = new Map<OrderTicketDto, OrderResultTicketDto>();
       // Запросы внутри транзакции выполняются последовательно.
       for (const [filmId, sessions] of groups) {
         const film = await repository.findById(filmId);
         if (!film) throw new NotFoundException({ error: 'Фильм не найден' });
+        const reservations = new Map<string, string[]>();
 
         for (const [sessionId, tickets] of sessions) {
           const session = film.schedule.find((item) => item.id === sessionId);
@@ -63,16 +64,7 @@ export class OrderService {
             }
             return `${ticket.row}:${ticket.seat}`;
           });
-          const reserved = await repository.reserveSeats(
-            filmId,
-            sessionId,
-            places,
-          );
-          if (!reserved) {
-            throw new BadRequestException({
-              error: 'Одно или несколько мест уже заняты',
-            });
-          }
+          reservations.set(sessionId, places);
           for (const ticket of tickets) {
             results.set(
               ticket,
@@ -89,10 +81,19 @@ export class OrderService {
             );
           }
         }
+        const reserved = await repository.reserveSessions(filmId, reservations);
+        if (!reserved) {
+          throw new BadRequestException({
+            error: 'Одно или несколько мест уже заняты',
+          });
+        }
       }
       const items = order.tickets.map((ticket) => results.get(ticket));
       return { total: items.length, items };
-    });
+    };
+    // Все сеансы одного фильма находятся в одном документе: транзакция не нужна.
+    if (groups.size === 1) return reserveOrder(this.filmsRepository);
+    return this.filmsRepository.withTransaction(reserveOrder);
   }
 
   /** Отсекает неверные данные до обращения к базе; номера начинаются с единицы. */

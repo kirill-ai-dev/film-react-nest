@@ -17,7 +17,7 @@ const film: FilmWithScheduleDto = {
     {
       id: 'session-id',
       daytime: '2024-06-28T10:00:53+03:00',
-      hall: '0',
+      hall: 0,
       rows: 5,
       seats: 10,
       price: 350,
@@ -38,7 +38,7 @@ describe('OrderService', () => {
   const repository = {
     withTransaction: jest.fn(),
     findById: jest.fn(),
-    reserveSeats: jest.fn(),
+    reserveSessions: jest.fn(),
   };
   const service = new OrderService(repository as unknown as FilmsRepository);
 
@@ -46,7 +46,7 @@ describe('OrderService', () => {
     jest.resetAllMocks();
     repository.withTransaction.mockImplementation((work) => work(repository));
     repository.findById.mockResolvedValue(film);
-    repository.reserveSeats.mockResolvedValue(film);
+    repository.reserveSessions.mockResolvedValue(film);
   });
 
   it('занимает места и возвращает актуальные данные сеанса', async () => {
@@ -55,10 +55,9 @@ describe('OrderService', () => {
       phone: '+70000000000',
       tickets: [ticket(2, 3), ticket(2, 4)],
     });
-    expect(repository.reserveSeats).toHaveBeenCalledWith(
+    expect(repository.reserveSessions).toHaveBeenCalledWith(
       film.id,
-      'session-id',
-      ['2:3', '2:4'],
+      new Map([['session-id', ['2:3', '2:4']]]),
     );
     expect(result.total).toBe(2);
     expect(result.items).toEqual(
@@ -92,11 +91,11 @@ describe('OrderService', () => {
         tickets: [ticket(2, 3), ticket(2, 3)],
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(repository.reserveSeats).not.toHaveBeenCalled();
+    expect(repository.reserveSessions).not.toHaveBeenCalled();
   });
 
   it('отклоняет уже занятое место', async () => {
-    repository.reserveSeats.mockResolvedValue(null);
+    repository.reserveSessions.mockResolvedValue(null);
     await expect(
       service.createOrder({
         email: 'test@example.com',
@@ -114,7 +113,7 @@ describe('OrderService', () => {
         tickets: [ticket(6, 1)],
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(repository.reserveSeats).not.toHaveBeenCalled();
+    expect(repository.reserveSessions).not.toHaveBeenCalled();
   });
 
   it('возвращает 404 для неизвестного фильма и сеанса', async () => {

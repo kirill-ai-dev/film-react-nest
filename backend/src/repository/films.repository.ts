@@ -1,4 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { ClientSession, Model } from 'mongoose';
 import { FilmDto, FilmWithScheduleDto } from '../films/dto/films.dto';
@@ -49,16 +53,39 @@ export class FilmsRepository {
     sessionId: string,
     places: string[],
   ): Promise<FilmWithScheduleDto | null> {
+    return this.reserveSessions(filmId, new Map([[sessionId, places]]));
+  }
+
+  /** Проверяет и занимает места всех сеансов фильма одним атомарным обновлением. */
+  async reserveSessions(
+    filmId: string,
+    reservations: ReadonlyMap<string, string[]>,
+  ): Promise<FilmWithScheduleDto | null> {
+    if (reservations.size === 0) return null;
+    const entries = [...reservations];
+    const changes: Record<string, { $each: string[] }> = {};
+    const arrayFilters = entries.map(([sessionId, places], index) => {
+      const alias = `session${index}`;
+      changes[`schedule.$[${alias}].taken`] = { $each: places };
+      return { [`${alias}.id`]: { $eq: sessionId } };
+    });
     const film = await this.filmModel
       .findOneAndUpdate(
         {
           id: { $eq: filmId },
-          schedule: {
-            $elemMatch: { id: { $eq: sessionId }, taken: { $nin: places } },
-          },
+          $and: entries.map(([sessionId, places]) => ({
+            schedule: {
+              $elemMatch: { id: { $eq: sessionId }, taken: { $nin: places } },
+            },
+          })),
         },
-        { $addToSet: { 'schedule.$.taken': { $each: places } } },
-        { new: true, session: this.sessions.getStore(), runValidators: true },
+        { $addToSet: changes },
+        {
+          new: true,
+          session: this.sessions.getStore(),
+          runValidators: true,
+          arrayFilters,
+        },
       )
       .lean()
       .exec();
@@ -69,6 +96,12 @@ export class FilmsRepository {
   async withTransaction<T>(
     work: (repository: FilmsRepository) => Promise<T>,
   ): Promise<T> {
+    const topology = await this.filmModel.db.db.admin().command({ hello: 1 });
+    if (!topology.setName && topology.msg !== 'isdbgrid') {
+      throw new ServiceUnavailableException({
+        error: 'Для заказа на несколько фильмов нужна MongoDB replica set',
+      });
+    }
     const session = await this.filmModel.db.startSession();
     try {
       return await session.withTransaction(() =>

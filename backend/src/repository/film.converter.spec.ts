@@ -21,7 +21,7 @@ const film: FilmWithScheduleDto = {
     {
       id: 'session-id',
       daytime: '2024-06-28T10:00:53+03:00',
-      hall: '0',
+      hall: 0,
       rows: 5,
       seats: 10,
       price: 350,
@@ -42,10 +42,10 @@ describe('Конвертер фильма', () => {
     expect(filmToDto(entity)).toEqual(summary);
   });
 
-  it('нормализует числовой номер зала из исходного JSON', () => {
+  it('возвращает числовой номер зала даже из ранее сохранённой строки', () => {
     const entity = filmToEntity(film);
-    Object.assign(entity.schedule[0], { hall: 0 });
-    expect(filmWithScheduleToDto(entity).schedule[0].hall).toBe('0');
+    Object.assign(entity.schedule[0], { hall: '0' });
+    expect(filmWithScheduleToDto(entity).schedule[0].hall).toBe(0);
   });
 
   it('не меняет исходные массивы при изменении результата', () => {

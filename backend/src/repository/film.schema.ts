@@ -4,7 +4,7 @@ import { Schema } from 'mongoose';
 export interface ScheduleEntity {
   id: string;
   daytime: string;
-  hall: string;
+  hall: number;
   rows: number;
   seats: number;
   price: number;
@@ -30,7 +30,7 @@ const scheduleSchema = new Schema<ScheduleEntity>(
   {
     id: { type: String, required: true },
     daytime: { type: String, required: true },
-    hall: { type: String, required: true },
+    hall: { type: Number, required: true, min: 0 },
     rows: { type: Number, required: true, min: 1 },
     seats: { type: Number, required: true, min: 1 },
     price: { type: Number, required: true, min: 0 },

@@ -46,7 +46,7 @@ export class ScheduleDto {
   daytime: string;
 
   /** Номер зала. */
-  hall: string;
+  hall: number;
 
   /** Количество рядов в зале. */
   rows: number;

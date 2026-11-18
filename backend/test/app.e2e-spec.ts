@@ -74,7 +74,7 @@ describe('Film API (e2e)', () => {
         total: film.schedule.length,
         items: film.schedule.map((session) => ({
           ...session,
-          hall: String(session.hall),
+          hall: Number(session.hall),
         })),
       });
   });

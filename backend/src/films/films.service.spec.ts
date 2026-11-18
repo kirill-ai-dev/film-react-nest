@@ -26,7 +26,7 @@ describe('FilmsService', () => {
   });
 
   it('возвращает расписание выбранного фильма', async () => {
-    const schedule = [{ id: 'session-id', hall: '0' }];
+    const schedule = [{ id: 'session-id', hall: 0 }];
     repository.findById.mockResolvedValue({ id: 'film-id', schedule });
     await expect(service.getSchedule('film-id')).resolves.toEqual({
       total: 1,

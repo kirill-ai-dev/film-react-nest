@@ -20,12 +20,12 @@ export function filmToDto(film: Omit<FilmEntity, 'schedule'>): FilmDto {
   });
 }
 
-/** Преобразует сеанс из хранилища в DTO и приводит номер зала к строке. */
+/** Преобразует сеанс из хранилища в DTO и приводит номер зала к числу. */
 function scheduleToDto(session: ScheduleEntity): ScheduleDto {
   return Object.assign(new ScheduleDto(), {
     id: session.id,
     daytime: session.daytime,
-    hall: String(session.hall),
+    hall: Number(session.hall),
     rows: session.rows,
     seats: session.seats,
     price: session.price,
