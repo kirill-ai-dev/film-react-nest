@@ -3,10 +3,10 @@ import {
   FilmWithScheduleDto,
   ScheduleDto,
 } from '../films/dto/films.dto';
-import { FilmEntity, ScheduleEntity } from './film.schema';
+import { Film, Schedule } from './film.schema';
 
 /** Возвращает только поля афиши, без расписания и служебных полей MongoDB. */
-export function filmToDto(film: Omit<FilmEntity, 'schedule'>): FilmDto {
+export function filmToDto(film: Omit<Film, 'schedule'>): FilmDto {
   return Object.assign(new FilmDto(), {
     id: film.id,
     title: film.title,
@@ -21,7 +21,7 @@ export function filmToDto(film: Omit<FilmEntity, 'schedule'>): FilmDto {
 }
 
 /** Преобразует сеанс из хранилища в DTO и приводит номер зала к числу. */
-function scheduleToDto(session: ScheduleEntity): ScheduleDto {
+function scheduleToDto(session: Schedule): ScheduleDto {
   return Object.assign(new ScheduleDto(), {
     id: session.id,
     daytime: session.daytime,
@@ -34,16 +34,16 @@ function scheduleToDto(session: ScheduleEntity): ScheduleDto {
 }
 
 /** Возвращает DTO фильма вместе с его расписанием. */
-export function filmWithScheduleToDto(film: FilmEntity): FilmWithScheduleDto {
+export function filmWithScheduleToDto(film: Film): FilmWithScheduleDto {
   return Object.assign(new FilmWithScheduleDto(), filmToDto(film), {
     schedule: film.schedule.map(scheduleToDto),
   });
 }
 
 /** Готовит данные DTO к сохранению, копируя только известные поля. */
-export function filmToEntity(film: FilmWithScheduleDto): FilmEntity {
-  return {
+export function filmToEntity(film: FilmWithScheduleDto): Film {
+  return Object.assign(new Film(), {
     ...filmToDto(film),
     schedule: film.schedule.map((session) => ({ ...scheduleToDto(session) })),
-  };
+  });
 }

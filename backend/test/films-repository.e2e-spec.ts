@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Connection, createConnection } from 'mongoose';
 import { FilmWithScheduleDto } from '../src/films/dto/films.dto';
-import { filmSchema } from '../src/repository/film.schema';
+import { FilmSchema } from '../src/repository/film.schema';
 import { FilmsRepository } from '../src/repository/films.repository';
 
 /** Проверяем настоящую MongoDB в отдельной базе, не затрагивая рабочие фильмы. */
@@ -22,7 +22,7 @@ describe('FilmsRepository (MongoDB)', () => {
         serverSelectionTimeoutMS: 5000,
       },
     ).asPromise();
-    const model = connection.model('Film', filmSchema);
+    const model = connection.model('Film', FilmSchema);
     await model.init();
     repository = new FilmsRepository(model);
   });

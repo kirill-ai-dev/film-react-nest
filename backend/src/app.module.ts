@@ -11,11 +11,11 @@ import { OrderService } from './order/order.service';
 
 @Module({
   imports: [
-    RepositoryModule,
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
     }),
+    RepositoryModule,
     ServeStaticModule.forRoot({
       rootPath: path.join(__dirname, '..', 'public', 'content', 'afisha'),
       serveRoot: '/content/afisha',

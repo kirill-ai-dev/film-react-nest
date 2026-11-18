@@ -1,4 +1,5 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { getConnectionToken } from '@nestjs/mongoose';
 import { NestFactory } from '@nestjs/core';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -11,6 +12,8 @@ import { FilmsRepository } from '../src/repository/films.repository';
 
 /** Запускается отдельно с TEST_STANDALONE_DATABASE_URL на обычной MongoDB. */
 describe('Бронирование на standalone MongoDB', () => {
+  const missingSessionId = '00000000-0000-4000-8000-000000000002';
+  const secondFilmId = '11111111-1111-4111-8111-111111111111';
   let app: INestApplication;
   let connection: Connection;
   let repository: FilmsRepository;
@@ -40,8 +43,11 @@ describe('Бронирование на standalone MongoDB', () => {
     process.env.DATABASE_URL = testUrl.toString();
     try {
       app = await NestFactory.create(AppModule, { logger: false });
+      app.useGlobalPipes(
+        new ValidationPipe({ transform: true, whitelist: true }),
+      );
       await app.init();
-      connection = app.get<Connection>('DATABASE_CONNECTION');
+      connection = app.get<Connection>(getConnectionToken());
       repository = app.get(FilmsRepository);
     } finally {
       if (previousUrl === undefined) delete process.env.DATABASE_URL;
@@ -108,13 +114,13 @@ describe('Бронирование на standalone MongoDB', () => {
   it('не меняет первый сеанс, если другой сеанс заказа отсутствует', async () => {
     await request(app.getHttpServer())
       .post('/order')
-      .send(order([ticket(film.schedule[0].id), ticket('missing-session')]))
+      .send(order([ticket(film.schedule[0].id), ticket(missingSessionId)]))
       .expect(404);
     expect((await repository.findById(film.id)).schedule[0].taken).toEqual([]);
   });
 
   it('на standalone отклоняет заказ разных фильмов до записи, а на replica set принимает', async () => {
-    const second = { ...film, id: 'second-film' };
+    const second = { ...film, id: secondFilmId };
     await repository.save(second);
     const topology = await connection.db.admin().command({ hello: 1 });
     const transactional = Boolean(

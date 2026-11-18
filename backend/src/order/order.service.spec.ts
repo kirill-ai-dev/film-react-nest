@@ -127,10 +127,10 @@ describe('OrderService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('возвращает пустой результат для пустого заказа', async () => {
+  it('отклоняет пустой заказ', async () => {
     await expect(
       service.createOrder({ email: 'a', phone: 'b', tickets: [] }),
-    ).resolves.toEqual({ total: 0, items: [] });
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.findById).not.toHaveBeenCalled();
   });
 });

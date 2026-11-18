@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { Connection } from 'mongoose';
 import { FilmWithScheduleDto } from '../src/films/dto/films.dto';
 import { FilmsRepository } from '../src/repository/films.repository';
-import { INestApplication, RequestMethod } from '@nestjs/common';
+import {
+  INestApplication,
+  RequestMethod,
+  ValidationPipe,
+} from '@nestjs/common';
+import { getConnectionToken } from '@nestjs/mongoose';
 import { NestFactory } from '@nestjs/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -10,6 +15,9 @@ import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 
 describe('Film API (e2e)', () => {
+  const unknownFilmId = '00000000-0000-4000-8000-000000000001';
+  const unknownSessionId = '00000000-0000-4000-8000-000000000002';
+  const secondFilmId = '11111111-1111-4111-8111-111111111111';
   let app: INestApplication;
   let connection: Connection;
   let repository: FilmsRepository;
@@ -34,8 +42,11 @@ describe('Film API (e2e)', () => {
           { path: 'api/afisha/order', method: RequestMethod.POST },
         ],
       });
+      app.useGlobalPipes(
+        new ValidationPipe({ transform: true, whitelist: true }),
+      );
       await app.init();
-      connection = app.get<Connection>('DATABASE_CONNECTION');
+      connection = app.get<Connection>(getConnectionToken());
       repository = app.get(FilmsRepository);
     } finally {
       if (previousUrl === undefined) delete process.env.DATABASE_URL;
@@ -235,7 +246,7 @@ describe('Film API (e2e)', () => {
   });
 
   it('бронирует одинаковые номера мест разных фильмов и сеансов', async () => {
-    const second = { ...film, id: 'second-film' };
+    const second = { ...film, id: secondFilmId };
     await repository.save(second);
     const tickets = [
       { film: film.id, session: film.schedule[0].id, row: 2, seat: 3 },
@@ -270,7 +281,7 @@ describe('Film API (e2e)', () => {
   });
 
   it('откатывает весь заказ, если место другого фильма уже занято', async () => {
-    const second = { ...film, id: 'second-film' };
+    const second = { ...film, id: secondFilmId };
     await repository.save(second);
     await repository.reserveSeats(second.id, second.schedule[0].id, ['2:3']);
     await request(app.getHttpServer())
@@ -320,11 +331,12 @@ describe('Film API (e2e)', () => {
     { email: 'a', phone: 'b', tickets: [null] },
     { email: '', phone: 'b', tickets: [] },
     { email: 'a', phone: '', tickets: [] },
+    { email: 'test@example.com', phone: '+70000000000', tickets: [] },
   ])('отклоняет неверный заказ %j', async (payload) => {
     await request(app.getHttpServer()).post('/order').send(payload).expect(400);
   });
 
-  it.each([{ film: 'missing' }, { session: 'missing' }])(
+  it.each([{ film: unknownFilmId }, { session: unknownSessionId }])(
     'возвращает 404 при отсутствии фильма или сеанса %j',
     async (fields) => {
       await request(app.getHttpServer())

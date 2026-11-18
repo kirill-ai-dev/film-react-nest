@@ -1,57 +1,83 @@
-import { Schema } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
-/** Данные сеанса внутри документа фильма в MongoDB. */
-export interface ScheduleEntity {
+/** Сеанс фильма, который хранится внутри документа фильма. */
+@Schema({ _id: false, id: false })
+export class Schedule {
+  /** Уникальный идентификатор сеанса. */
+  @Prop({ type: String, required: true })
   id: string;
+
+  /** Дата и время начала сеанса. */
+  @Prop({ type: String, required: true })
   daytime: string;
+
+  /** Номер зала. */
+  @Prop({ type: Number, required: true, min: 0 })
   hall: number;
+
+  /** Количество рядов. */
+  @Prop({ type: Number, required: true, min: 1 })
   rows: number;
+
+  /** Количество мест в каждом ряду. */
+  @Prop({ type: Number, required: true, min: 1 })
   seats: number;
+
+  /** Цена билета. */
+  @Prop({ type: Number, required: true, min: 0 })
   price: number;
+
+  /** Уже занятые места в формате «ряд:место». */
+  @Prop({ type: [String], default: [] })
   taken: string[];
 }
 
-/** Поля документа фильма, без служебных полей MongoDB. */
-export interface FilmEntity {
+/** Схема вложенного сеанса без отдельного MongoDB _id. */
+export const ScheduleSchema = SchemaFactory.createForClass(Schedule);
+
+/** Фильм и его расписание в коллекции films. */
+@Schema({ collection: 'films', id: false, versionKey: false })
+export class Film {
+  /** Уникальный идентификатор фильма из API. */
+  @Prop({ type: String, required: true, unique: true })
   id: string;
+
+  /** Название фильма. */
+  @Prop({ type: String, required: true })
   title: string;
+
+  /** Рейтинг фильма. */
+  @Prop({ type: Number, required: true, min: 0, max: 10 })
   rating: number;
+
+  /** Режиссёр фильма. */
+  @Prop({ type: String, required: true })
   director: string;
+
+  /** Жанры фильма. */
+  @Prop({ type: [String], default: [] })
   tags: string[];
+
+  /** Краткое описание фильма. */
+  @Prop({ type: String, required: true })
   about: string;
+
+  /** Полное описание фильма. */
+  @Prop({ type: String, required: true })
   description: string;
+
+  /** Имя файла маленькой афиши. */
+  @Prop({ type: String, required: true })
   image: string;
+
+  /** Имя файла обложки фильма. */
+  @Prop({ type: String, required: true })
   cover: string;
-  schedule: ScheduleEntity[];
+
+  /** Расписание сеансов фильма. */
+  @Prop({ type: [ScheduleSchema], default: [] })
+  schedule: Schedule[];
 }
 
-/** Сеансу достаточно своего строкового id, дополнительный _id не нужен. */
-const scheduleSchema = new Schema<ScheduleEntity>(
-  {
-    id: { type: String, required: true },
-    daytime: { type: String, required: true },
-    hall: { type: Number, required: true, min: 0 },
-    rows: { type: Number, required: true, min: 1 },
-    seats: { type: Number, required: true, min: 1 },
-    price: { type: Number, required: true, min: 0 },
-    taken: { type: [String], default: [] },
-  },
-  { _id: false, id: false },
-);
-
-/** Фильм хранится вместе со всем расписанием в коллекции films. */
-export const filmSchema = new Schema<FilmEntity>(
-  {
-    id: { type: String, required: true, unique: true },
-    title: { type: String, required: true },
-    rating: { type: Number, required: true, min: 0, max: 10 },
-    director: { type: String, required: true },
-    tags: { type: [String], default: [] },
-    about: { type: String, required: true },
-    description: { type: String, required: true },
-    image: { type: String, required: true },
-    cover: { type: String, required: true },
-    schedule: { type: [scheduleSchema], default: [] },
-  },
-  { collection: 'films', id: false, versionKey: false },
-);
+/** Схема документа коллекции films. */
+export const FilmSchema = SchemaFactory.createForClass(Film);

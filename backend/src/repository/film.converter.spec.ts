@@ -5,7 +5,7 @@ import {
   filmToEntity,
   filmWithScheduleToDto,
 } from './film.converter';
-import { filmSchema } from './film.schema';
+import { FilmSchema } from './film.schema';
 
 const film: FilmWithScheduleDto = {
   id: 'film-id',
@@ -57,10 +57,10 @@ describe('Конвертер фильма', () => {
   });
 
   it('создаёт коллекцию films без дополнительных _id у сеансов', () => {
-    const Film = model('ConverterFilm', filmSchema);
-    const document = new Film(filmToEntity(film));
+    const FilmModel = model('ConverterFilm', FilmSchema);
+    const document = new FilmModel(filmToEntity(film));
     expect(document.validateSync()).toBeUndefined();
-    expect(Film.collection.name).toBe('films');
+    expect(FilmModel.collection.name).toBe('films');
     expect(document.id).toBe(film.id);
     expect(document.schedule[0]).not.toHaveProperty('_id');
   });

@@ -48,11 +48,12 @@ DATABASE_URL=mongodb://127.0.0.1:27017/prac
 - `GET /api/afisha/films/` — фильмы без расписания и служебных полей MongoDB.
 - `GET /api/afisha/films/:id/schedule` — расписание; неизвестный фильм возвращает 404.
 - `POST /order` и `POST /api/afisha/order` — бронирование билетов.
-  Контакты покупателя и массив `tickets` обязательны. Для билета нужны
+  Контакты покупателя и непустой массив `tickets` обязательны. Для билета нужны
   `film`, `session`, `row` и `seat`; цена и время берутся из БД.
   Ответ содержит `total` и `items` с UUID подтверждённых билетов.
   Занятое место, дубликат в заказе или неверные координаты возвращают 400,
-  неизвестный фильм или сеанс — 404. Пустой массив билетов возвращает пустой результат.
+  неизвестный фильм или сеанс — 404. Входные данные проверяются через
+  `ValidationPipe`, лишние поля удаляются.
 - `GET /content/afisha/*` — изображения афиши.
 
 Для локального фронтенда создайте `frontend/.env.local` относительно корня проекта:
@@ -85,8 +86,7 @@ npm run build
 - `src/repository/film.schema.ts` — схемы фильма и вложенного сеанса.
 - `src/repository/film.converter.ts` — преобразование DTO и сущностей хранилища.
 - `src/repository/films.repository.ts` — чтение и сохранение фильмов.
-- `src/repository/database.provider.ts` — подключение и модель Mongoose.
-- `src/repository/repository.module.ts` — внедрение репозитория и закрытие соединения.
+- `src/repository/repository.module.ts` — подключение Mongoose и регистрация модели через Nest DI.
 - `src/scripts/seed-films.ts` — импорт исходных фильмов.
 
 ## Бронирование

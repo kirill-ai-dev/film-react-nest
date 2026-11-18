@@ -1,28 +1,30 @@
-import { Inject, Module, OnModuleDestroy } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { Connection } from 'mongoose';
-import { configProvider } from '../app.config.provider';
-import { databaseProvider, filmModelProvider } from './database.provider';
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
+import { Film, FilmSchema } from './film.schema';
 import { FilmsRepository } from './films.repository';
 
-/** Подключает MongoDB и предоставляет репозиторий другим модулям. */
+/** Подключает MongoDB через Nest Mongoose и предоставляет репозиторий. */
 @Module({
-  imports: [ConfigModule],
-  providers: [
-    configProvider,
-    databaseProvider,
-    filmModelProvider,
-    FilmsRepository,
+  imports: [
+    ConfigModule,
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const driver = config.get<string>('DATABASE_DRIVER', 'mongodb');
+        if (driver !== 'mongodb') {
+          throw new Error('Поддерживается только DATABASE_DRIVER=mongodb');
+        }
+        return {
+          uri: config.getOrThrow<string>('DATABASE_URL'),
+          serverSelectionTimeoutMS: 5000,
+        };
+      },
+    }),
+    MongooseModule.forFeature([{ name: Film.name, schema: FilmSchema }]),
   ],
-  exports: [FilmsRepository, databaseProvider],
+  providers: [FilmsRepository],
+  exports: [FilmsRepository],
 })
-export class RepositoryModule implements OnModuleDestroy {
-  constructor(
-    @Inject('DATABASE_CONNECTION') private readonly connection: Connection,
-  ) {}
-
-  /** Закрывает подключение при остановке приложения и завершении тестов. */
-  async onModuleDestroy(): Promise<void> {
-    await this.connection.close();
-  }
-}
+export class RepositoryModule {}

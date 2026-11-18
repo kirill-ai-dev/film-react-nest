@@ -23,8 +23,6 @@ export class OrderService {
    */
   async createOrder(order: OrderDto): Promise<OrderResponseDto> {
     this.validateOrder(order);
-    if (order.tickets.length === 0) return { total: 0, items: [] };
-
     // Вложенные Map не смешивают одинаковые номера мест разных фильмов и сеансов.
     const groups = new Map<string, Map<string, OrderTicketDto[]>>();
     for (const ticket of order.tickets) {
@@ -104,7 +102,8 @@ export class OrderService {
       !order.email.trim() ||
       typeof order.phone !== 'string' ||
       !order.phone.trim() ||
-      !Array.isArray(order.tickets)
+      !Array.isArray(order.tickets) ||
+      order.tickets.length === 0
     ) {
       throw new BadRequestException({
         error: 'Нужны контакты покупателя и массив билетов',

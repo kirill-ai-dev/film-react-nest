@@ -1,8 +1,5 @@
-import {
-  Inject,
-  Injectable,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { ClientSession, Model } from 'mongoose';
 import { FilmDto, FilmWithScheduleDto } from '../films/dto/films.dto';
@@ -11,7 +8,7 @@ import {
   filmToEntity,
   filmWithScheduleToDto,
 } from './film.converter';
-import { FilmEntity } from './film.schema';
+import { Film } from './film.schema';
 
 /** Работает с коллекцией films и скрывает детали MongoDB от сервисов. */
 @Injectable()
@@ -20,7 +17,7 @@ export class FilmsRepository {
   private readonly sessions = new AsyncLocalStorage<ClientSession>();
 
   constructor(
-    @Inject('FILM_MODEL') private readonly filmModel: Model<FilmEntity>,
+    @InjectModel(Film.name) private readonly filmModel: Model<Film>,
   ) {}
 
   /** Возвращает фильмы для афиши, не загружая вложенное расписание. */
