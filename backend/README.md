@@ -1,108 +1,64 @@
 # Бэкенд FILM!
 
-Nest.js получает фильмы из MongoDB через Mongoose. Коллекция `films` хранит
-описание фильма и массив сеансов `schedule` внутри того же документа. Строковый
-`id` из API отличается от служебного `_id` MongoDB.
+Nest.js хранит фильмы и сеансы в PostgreSQL через TypeORM. Таблицы `films` и
+`schedules` связаны отношением один-ко-многим по полю `film_id`.
 
 ## Запуск
 
-Из корня проекта запустите MongoDB:
+Из корня проекта запустите PostgreSQL:
 
 ```bash
-docker compose up -d mongodb
+docker compose up -d postgres
 ```
 
-База доступна только на `127.0.0.1:27017`. Данные сохраняются в Docker volume.
-MongoDB запускается как replica set `rs0` из одного узла для транзакций
-бронирования. Healthcheck автоматически инициализирует его; перед первым
-запуском API дождитесь статуса `healthy` в `docker compose ps`.
-Для заказов на несколько фильмов нужен replica set или кластер с поддержкой
-транзакций. Заказы на один фильм, включая несколько сеансов, работают и на
-обычной standalone MongoDB.
-Для остановки используйте `docker compose stop mongodb`.
-
-Из папки `backend`:
+Из папки `backend` установите зависимости, скопируйте настройки и запустите API:
 
 ```bash
 npm ci
 cp .env.example .env
-npm run db:seed
 npm run start:dev
 ```
 
-Если `.env` уже существует, сохраните свои настройки. Для локальной базы укажите:
+Пример настроек:
 
 ```dotenv
 PORT=3000
-DATABASE_DRIVER=mongodb
-DATABASE_URL=mongodb://127.0.0.1:27017/prac
+DATABASE_DRIVER=postgres
+DATABASE_URL=postgres://localhost:5432/prac
+DATABASE_USERNAME=prac
+DATABASE_PASSWORD=prac
 ```
 
-Импорт читает `test/mongodb_initial_stub.json` и проверяет наличие изображений в
-`public/content/afisha`. Уже существующие фильмы пропускаются, их данные и занятые
-места не сбрасываются. Даты сеансов остаются такими, как в учебном JSON.
-Также можно импортировать JSON через Compass в коллекцию `films` базы `prac`.
+Создание таблиц и учебное наполнение выполняются SQL-файлами:
+
+```bash
+docker compose exec -T postgres psql -U prac -d prac < backend/test/prac.init.sql
+docker compose exec -T postgres psql -U prac -d prac < backend/test/prac.films.sql
+docker compose exec -T postgres psql -U prac -d prac < backend/test/prac.shedules.sql
+```
 
 ## API
 
-- `GET /api/afisha/films/` — фильмы без расписания и служебных полей MongoDB.
-- `GET /api/afisha/films/:id/schedule` — расписание; неизвестный фильм возвращает 404.
+- `GET /api/afisha/films/` — список фильмов без расписания.
+- `GET /api/afisha/films/:id/schedule` — расписание фильма; неизвестный фильм возвращает 404.
 - `POST /order` и `POST /api/afisha/order` — бронирование билетов.
-  Контакты покупателя и непустой массив `tickets` обязательны. Для билета нужны
-  `film`, `session`, `row` и `seat`; цена и время берутся из БД.
-  Ответ содержит `total` и `items` с UUID подтверждённых билетов.
-  Занятое место, дубликат в заказе или неверные координаты возвращают 400,
-  неизвестный фильм или сеанс — 404. Входные данные проверяются через
-  `ValidationPipe`, лишние поля удаляются.
 - `GET /content/afisha/*` — изображения афиши.
 
-Для локального фронтенда создайте `frontend/.env.local` относительно корня проекта:
-
-```dotenv
-VITE_API_URL=http://localhost:3000/api/afisha
-VITE_CDN_URL=http://localhost:3000/content/afisha
-```
+Контакты покупателя и непустой массив `tickets` обязательны. Для билета нужны
+`film`, `session`, `row` и `seat`; цена и время берутся из базы. Повторная бронь
+места и неверные координаты возвращают 400, неизвестный фильм или сеанс — 404.
 
 ## Проверки
 
-Из папки `backend`, с запущенной MongoDB:
-
 ```bash
-npm test -- --runInBand
-npm run test:e2e -- --runInBand
+npm run lint
 npm run build
 ```
 
-Модульные тесты обходятся без MongoDB. Интеграционные и e2e-тесты создают отдельные
-базы со случайными именами и удаляют только их после проверки. Рабочая база `prac`
-не очищается. Для другого сервера MongoDB можно задать `TEST_DATABASE_URL`.
-Для дополнительной проверки обычной MongoDB задайте
-`TEST_STANDALONE_DATABASE_URL=mongodb://127.0.0.1:27018` при запуске e2e-тестов.
-Порт должен указывать на отдельно запущенную standalone MongoDB. Если переменная
-не задана, этот набор проверяется на том же сервере, что и остальные тесты.
-
 ## Устройство хранилища
 
-- `src/repository/film.schema.ts` — схемы фильма и вложенного сеанса.
-- `src/repository/film.converter.ts` — преобразование DTO и сущностей хранилища.
-- `src/repository/films.repository.ts` — чтение и сохранение фильмов.
-- `src/repository/repository.module.ts` — подключение Mongoose и регистрация модели через Nest DI.
-- `src/scripts/seed-films.ts` — импорт исходных фильмов.
-
-## Бронирование
-
-Места хранятся в `schedule[].taken` строками вида `2:3`. Ряды и кресла
-нумеруются с единицы. Билеты группируются по фильму и сеансу. Репозиторий
-одним запросом проверяет, что все места выбранного сеанса свободны, и
-добавляет их через `$addToSet` с `arrayFilters`. Все выбранные сеансы одного
-фильма изменяются одним запросом. Проверка и запись атомарны: параллельный
-заказ не сможет занять то же кресло второй раз.
-
-Заказ на несколько фильмов выполняется в транзакции. Если хотя бы одно место
-нельзя забронировать, откатываются все изменения, включая билеты других фильмов.
-На standalone такой заказ возвращает 503 до записи каких-либо мест, с пояснением
-о необходимости replica set. Заказ на один фильм не требует транзакции: при
-конфликте любого места атомарный запрос не меняет ни один сеанс этого фильма.
-Сессии транзакций изолированы друг от друга через `AsyncLocalStorage`.
-Один репозиторий внедряется Nest через конструктор, а каждый заказ получает
-собственный контекст сессии; дополнительные экземпляры репозитория не создаются.
+- `src/repository/film.entity.ts` — сущность фильма.
+- `src/repository/schedule.entity.ts` — сущность сеанса и связь с фильмом.
+- `src/repository/film.converter.ts` — преобразование сущностей в DTO.
+- `src/repository/films.repository.ts` — TypeORM-репозиторий и атомарное бронирование.
+- `src/repository/repository.module.ts` — подключение PostgreSQL через ConfigModule.
