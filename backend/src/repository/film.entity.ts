@@ -1,10 +1,16 @@
-import { Check, Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import {
+  Check,
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Schedule } from './schedule.entity';
 
 @Entity({ name: 'films' })
 @Check('"rating" >= 0 AND "rating" <= 10')
 export class Film {
-  @PrimaryColumn({ type: 'uuid' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()

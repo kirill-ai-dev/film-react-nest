@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS public.films
 (
-    id uuid PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     rating double precision NOT NULL,
     director varchar NOT NULL,
     tags text[] NOT NULL DEFAULT '{}',
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.films
 
 CREATE TABLE IF NOT EXISTS public.schedules
 (
-    id uuid PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     daytime timestamptz NOT NULL,
     hall integer NOT NULL,
     rows integer NOT NULL,

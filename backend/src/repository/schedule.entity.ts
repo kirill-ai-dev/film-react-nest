@@ -4,7 +4,7 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Film } from './film.entity';
 
@@ -14,7 +14,7 @@ import { Film } from './film.entity';
 @Check('"seats" > 0')
 @Check('"price" >= 0')
 export class Schedule {
-  @PrimaryColumn({ type: 'uuid' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'timestamptz' })
