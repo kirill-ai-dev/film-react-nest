@@ -1,73 +1,108 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# Бэкенд FILM!
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Nest.js получает фильмы из MongoDB через Mongoose. Коллекция `films` хранит
+описание фильма и массив сеансов `schedule` внутри того же документа. Строковый
+`id` из API отличается от служебного `_id` MongoDB.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Запуск
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Installation
+Из корня проекта запустите MongoDB:
 
 ```bash
-$ npm install
+docker compose up -d mongodb
 ```
 
-## Running the app
+База доступна только на `127.0.0.1:27017`. Данные сохраняются в Docker volume.
+MongoDB запускается как replica set `rs0` из одного узла для транзакций
+бронирования. Healthcheck автоматически инициализирует его; перед первым
+запуском API дождитесь статуса `healthy` в `docker compose ps`.
+Для заказов на несколько фильмов нужен replica set или кластер с поддержкой
+транзакций. Заказы на один фильм, включая несколько сеансов, работают и на
+обычной standalone MongoDB.
+Для остановки используйте `docker compose stop mongodb`.
+
+Из папки `backend`:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm ci
+cp .env.example .env
+npm run db:seed
+npm run start:dev
 ```
 
-## Test
+Если `.env` уже существует, сохраните свои настройки. Для локальной базы укажите:
+
+```dotenv
+PORT=3000
+DATABASE_DRIVER=mongodb
+DATABASE_URL=mongodb://127.0.0.1:27017/prac
+```
+
+Импорт читает `test/mongodb_initial_stub.json` и проверяет наличие изображений в
+`public/content/afisha`. Уже существующие фильмы пропускаются, их данные и занятые
+места не сбрасываются. Даты сеансов остаются такими, как в учебном JSON.
+Также можно импортировать JSON через Compass в коллекцию `films` базы `prac`.
+
+## API
+
+- `GET /api/afisha/films/` — фильмы без расписания и служебных полей MongoDB.
+- `GET /api/afisha/films/:id/schedule` — расписание; неизвестный фильм возвращает 404.
+- `POST /order` и `POST /api/afisha/order` — бронирование билетов.
+  Контакты покупателя и непустой массив `tickets` обязательны. Для билета нужны
+  `film`, `session`, `row` и `seat`; цена и время берутся из БД.
+  Ответ содержит `total` и `items` с UUID подтверждённых билетов.
+  Занятое место, дубликат в заказе или неверные координаты возвращают 400,
+  неизвестный фильм или сеанс — 404. Входные данные проверяются через
+  `ValidationPipe`, лишние поля удаляются.
+- `GET /content/afisha/*` — изображения афиши.
+
+Для локального фронтенда создайте `frontend/.env.local` относительно корня проекта:
+
+```dotenv
+VITE_API_URL=http://localhost:3000/api/afisha
+VITE_CDN_URL=http://localhost:3000/content/afisha
+```
+
+## Проверки
+
+Из папки `backend`, с запущенной MongoDB:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
+npm run build
 ```
 
-## Support
+Модульные тесты обходятся без MongoDB. Интеграционные и e2e-тесты создают отдельные
+базы со случайными именами и удаляют только их после проверки. Рабочая база `prac`
+не очищается. Для другого сервера MongoDB можно задать `TEST_DATABASE_URL`.
+Для дополнительной проверки обычной MongoDB задайте
+`TEST_STANDALONE_DATABASE_URL=mongodb://127.0.0.1:27018` при запуске e2e-тестов.
+Порт должен указывать на отдельно запущенную standalone MongoDB. Если переменная
+не задана, этот набор проверяется на том же сервере, что и остальные тесты.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Устройство хранилища
 
-## Stay in touch
+- `src/repository/film.schema.ts` — схемы фильма и вложенного сеанса.
+- `src/repository/film.converter.ts` — преобразование DTO и сущностей хранилища.
+- `src/repository/films.repository.ts` — чтение и сохранение фильмов.
+- `src/repository/repository.module.ts` — подключение Mongoose и регистрация модели через Nest DI.
+- `src/scripts/seed-films.ts` — импорт исходных фильмов.
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Бронирование
 
-## License
+Места хранятся в `schedule[].taken` строками вида `2:3`. Ряды и кресла
+нумеруются с единицы. Билеты группируются по фильму и сеансу. Репозиторий
+одним запросом проверяет, что все места выбранного сеанса свободны, и
+добавляет их через `$addToSet` с `arrayFilters`. Все выбранные сеансы одного
+фильма изменяются одним запросом. Проверка и запись атомарны: параллельный
+заказ не сможет занять то же кресло второй раз.
 
-Nest is [MIT licensed](LICENSE).
+Заказ на несколько фильмов выполняется в транзакции. Если хотя бы одно место
+нельзя забронировать, откатываются все изменения, включая билеты других фильмов.
+На standalone такой заказ возвращает 503 до записи каких-либо мест, с пояснением
+о необходимости replica set. Заказ на один фильм не требует транзакции: при
+конфликте любого места атомарный запрос не меняет ни один сеанс этого фильма.
+Сессии транзакций изолированы друг от друга через `AsyncLocalStorage`.
+Один репозиторий внедряется Nest через конструктор, а каждый заказ получает
+собственный контекст сессии; дополнительные экземпляры репозитория не создаются.
