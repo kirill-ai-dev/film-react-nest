@@ -1,28 +1,34 @@
+import 'dotenv/config';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Film, FilmSchema } from './film.schema';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Film } from './film.entity';
+import { Schedule } from './schedule.entity';
 import { FilmsRepository } from './films.repository';
 
-/** Подключает MongoDB через Nest Mongoose и предоставляет репозиторий. */
 @Module({
   imports: [
     ConfigModule,
-    MongooseModule.forRootAsync({
+    TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const driver = config.get<string>('DATABASE_DRIVER', 'mongodb');
-        if (driver !== 'mongodb') {
-          throw new Error('Поддерживается только DATABASE_DRIVER=mongodb');
-        }
+        const databaseUrl = new URL(config.getOrThrow<string>('DATABASE_URL'));
+        const password = config.get<string>('DATABASE_PASSWORD');
+        const username = config.get<string>('DATABASE_USERNAME');
+
         return {
-          uri: config.getOrThrow<string>('DATABASE_URL'),
-          serverSelectionTimeoutMS: 5000,
+          type: 'postgres' as const,
+          host: databaseUrl.hostname,
+          port: Number(databaseUrl.port || 5432),
+          database: databaseUrl.pathname.slice(1),
+          username: username || decodeURIComponent(databaseUrl.username),
+          password: password || decodeURIComponent(databaseUrl.password),
+          entities: [Film, Schedule],
+          synchronize: false,
         };
       },
     }),
-    MongooseModule.forFeature([{ name: Film.name, schema: FilmSchema }]),
   ],
   providers: [FilmsRepository],
   exports: [FilmsRepository],
