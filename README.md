@@ -96,8 +96,9 @@ PM2 намеренно не используется: контейнерный b
 
 ## Развёрнутый учебный проект
 
-- Приложение: http://kirill-test-practic.ru/
-- HTTPS будет включён после перевода DNS-записей `kirill-test-practic.ru` и `www.kirill-test-practic.ru` в режим DNS-only для выпуска сертификата Let's Encrypt.
+- Приложение: https://kirill-test-practic.ru/
+- Сертификат Let's Encrypt выпущен для `kirill-test-practic.ru` и `www.kirill-test-practic.ru`. HTTP и HTTPS-адрес с `www` перенаправляются на основной HTTPS-домен с сохранением пути и параметров.
+- Автопродление настроено через `certbot.timer`; deploy-hook проверяет и перезагружает Nginx после обновления сертификата.
 - Индексация закрыта через `robots.txt`, HTML meta-теги и заголовок `X-Robots-Tag`.
 - Сервис развёрнут в отдельном каталоге `/opt/film-react-nest`, Compose-проекте `film-react-nest` и loopback-порту `127.0.0.1:8181`; существующие сайты используют свои vhost и не разделяют его контейнеры или volumes.
 
