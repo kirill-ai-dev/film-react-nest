@@ -1,0 +1,48 @@
+name: Deploy production
+
+on:
+  workflow_run:
+    workflows:
+      - Publish Docker images
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Upload production Compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          source: docker-compose.prod.yml
+          target: /opt/film-react-nest
+
+      - name: Pull and restart production services
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -eu
+            cd /opt/film-react-nest
+            sudo docker compose -p film-react-nest -f docker-compose.prod.yml pull backend frontend
+            sudo docker compose -p film-react-nest -f docker-compose.prod.yml up -d --no-build backend frontend
+            sudo docker compose -p film-react-nest -f docker-compose.prod.yml ps

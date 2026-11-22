@@ -8,6 +8,9 @@ import { FilmsController } from './films/films.controller';
 import { OrderController } from './order/order.controller';
 import { FilmsService } from './films/films.service';
 import { OrderService } from './order/order.service';
+import { DevLogger } from './logger/dev.logger';
+import { JsonLogger } from './logger/json.logger';
+import { TskvLogger } from './logger/tskv.logger';
 
 @Module({
   imports: [
@@ -22,6 +25,6 @@ import { OrderService } from './order/order.service';
     }),
   ],
   controllers: [FilmsController, OrderController],
-  providers: [FilmsService, OrderService],
+  providers: [FilmsService, OrderService, DevLogger, JsonLogger, TskvLogger],
 })
 export class AppModule {}

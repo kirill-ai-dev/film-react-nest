@@ -20,11 +20,31 @@ jobs:
       with:
         node-version: 18.x
     - name: Get testing lib
-      run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
+      run: set -eu && git clone --depth 1 "$REP_TESTS" "$DIR_TESTS"
     - name: Run tests
-      run: bash $DIR_TESTS/bin/backend.sh
+      run: bash "$DIR_TESTS/bin/backend.sh"
   test_endpoints:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: prac
+          POSTGRES_USER: prac
+          POSTGRES_PASSWORD: prac
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U prac -d prac"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PORT: 3000
+      DATABASE_DRIVER: postgres
+      DATABASE_URL: postgres://prac:prac@127.0.0.1:5432/prac
+      DATABASE_USERNAME: prac
+      DATABASE_PASSWORD: prac
     steps:
     - name: Set up GitHub Actions
       uses: actions/checkout@v4
@@ -33,8 +53,17 @@ jobs:
       with:
         node-version: 18.x
     - name: Get testing lib
-      run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
+      run: set -eu && git clone --depth 1 "$REP_TESTS" "$DIR_TESTS"
+    - name: Initialize PostgreSQL
+      run: |
+        for script in backend/test/prac.init.sql backend/test/prac.films.sql backend/test/prac.shedules.sql; do
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            --entrypoint psql postgres:16-alpine \
+            postgresql://prac:prac@127.0.0.1:5432/prac \
+            -v ON_ERROR_STOP=1 -f "/workspace/$script"
+        done
     - name: Start project
-      run: bash $DIR_TESTS/bin/start_project.sh
+      run: bash "$DIR_TESTS/bin/start_project.sh"
     - name: Run tests
-      run: bash $DIR_TESTS/bin/endpoints.sh
+      run: bash "$DIR_TESTS/bin/endpoints.sh"

@@ -61,6 +61,46 @@ VITE_API_URL=http://localhost:3000/api/afisha
 VITE_CDN_URL=http://localhost:3000/content/afisha
 ```
 
+## Деплой через Docker Compose
+
+Для production-сборки скопируйте пример переменных и задайте свои значения:
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.yml up -d --build
+```
+
+После запуска:
+
+- приложение: `http://127.0.0.1/` (локальный Compose-порт `80`);
+- API: `http://127.0.0.1/api/afisha/films/`;
+- pgAdmin: `http://127.0.0.1:8080/` (только через SSH-туннель).
+
+Для production используется отдельный `docker-compose.prod.yml`: frontend доступен только на `127.0.0.1:8181`, потому что внешний Nginx уже занимает публичный порт `80` и проксирует домен `kirill-test-practic.ru` в контейнер. Это сделано, чтобы не затрагивать другие сайты на сервере.
+
+Образы и Nginx на удалённом сервере используют отдельный vhost `kirill-test-practic.ru`.
+
+Перед первым запуском заполните PostgreSQL SQL-скриптами из `backend/test`:
+
+```bash
+docker compose -f docker-compose.yml exec -T database psql -U prac -d prac < backend/test/prac.init.sql
+docker compose -f docker-compose.yml exec -T database psql -U prac -d prac < backend/test/prac.films.sql
+docker compose -f docker-compose.yml exec -T database psql -U prac -d prac < backend/test/prac.shedules.sql
+```
+
+Образы публикуются GitHub Actions в GitHub Container Registry после push в `main`.
+
+Для production обновление может выполняться workflow `Deploy production` после успешного workflow публикации образов. Для этого в настройках репозитория должны быть заданы Secrets `PRODUCTION_HOST`, `PRODUCTION_USER` и `PRODUCTION_SSH_KEY`. Workflow использует `docker-compose.prod.yml`, не открывает frontend напрямую наружу и обновляет только backend/frontend-контейнеры.
+
+PM2 намеренно не используется: контейнерный backend запускается одним production-процессом, Docker собирает stdout/stderr, а структурированные JSON-логи доступны через `docker compose logs`.
+
+## Развёрнутый учебный проект
+
+- Приложение: http://kirill-test-practic.ru/
+- HTTPS будет включён после перевода DNS-записей `kirill-test-practic.ru` и `www.kirill-test-practic.ru` в режим DNS-only для выпуска сертификата Let's Encrypt.
+- Индексация закрыта через `robots.txt`, HTML meta-теги и заголовок `X-Robots-Tag`.
+- Сервис развёрнут в отдельном каталоге `/opt/film-react-nest`, Compose-проекте `film-react-nest` и loopback-порту `127.0.0.1:8181`; существующие сайты используют свои vhost и не разделяют его контейнеры или volumes.
+
 ## Проверки
 
 В папке `backend`:
